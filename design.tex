@@ -1,0 +1,96 @@
+% CHANGE THESE DEFINITIONS
+\newcommand{\NAME}{Surendra Jammishetti}
+\newcommand{\ASSIGNMENT}{TwizSec Library Crate}
+\newcommand{\CLASS}{Twizzler}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{multirow}
+\usepackage{hyperref}
+\usepackage{lastpage}
+\usepackage{fancyhdr}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{underscore}
+\usepackage{subcaption}
+\usepackage{fancyvrb}
+\usepackage{listings}
+\lstset{
+basicstyle=\small\ttfamily,
+columns=flexible,
+breaklines=true
+}
+
+
+\title{\ASSIGNMENT}
+\author{\NAME}
+\date{\CLASS}
+
+\begin{document}
+\pagestyle{fancy}
+\fancyfoot{}
+\fancyhead{}
+\fancyfoot[L]{\ASSIGNMENT\ -- \CLASS\ -- \NAME}
+\fancyfoot[R]{\thepage}
+
+\maketitle
+
+
+\section{Early Goals}
+
+The TwizSec crate aims to provide an external library for the Twizzler kernel that has
+the following goals (summarized from me and Daniels meeting on 11/26/24).
+\begin{enumerate}
+    \item storing and receiving capabilities
+    \item signing and verifying capabilities
+    \item programming the mmu / io to reflect security policy data
+\end{enumerate}
+
+\section{Implementation}
+
+
+\subsection{Needs}
+The plan is to work on the second item first, as its the path of least resistance.
+Ideally expose two functions.
+\begin{enumerate}
+    \item Takens in capability and signature, returns if they are correct or not
+    \item Given a capability, construct a signature
+\end{enumerate}
+
+\subsection{Deps}
+The kernel has crypto libraries already integrated, use those to build these features
+currently this is all we got
+
+p256 : https://crates.io/crates/p256
+
+sha2 : https://crates.io/crates/sha2
+
+Which, atleast right now, should have everything we need.
+
+\subsection{Capabilites}
+
+Currently we dont have a capability struct, so Im going to use
+what was in the security paper as an example.
+
+Additionally I'm considering making the two functions impl'd onto the struct,
+so that way they can be called on any capability struct, as I think it would
+be nice and ergonomic but not sure what others would think.
+
+This is the spec inside the paper
+
+\begin{verbatim}
+CAP := {
+    target, accessor : ObjectId,
+    permissions, flags : BitField, // bitfield of permissions
+    gates: Gates, // going to not have this
+    revocation : Revoc, // not going to have this
+    siglen: Length, // not really sure what "Length" means here but im assuming a u16 should be good enough
+    sig: u8[], // signature
+}
+\end{verbatim}
+
+
+\end{document}
