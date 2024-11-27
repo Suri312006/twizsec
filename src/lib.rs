@@ -1,14 +1,29 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+//TODO: figure out what the actual type is in the kernel crate
+type ObjectId = u32;
+
+pub struct Cap  {
+    target: ObjectId,
+    accessor: ObjectId,
+    //TODO: work on these later
+    //gates: Gates
+    //revocation: Revoc
+    siglen: u16, // in paper said type Length, just using u16
+    sig: Box<[u8]>, // variable length sig
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub enum CapErr {
+    InvalidSignature
+}
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+
+
+impl Cap {
+    // if the signature is a part of itself, then there should really be a new capability function
+    pub fn new(target: ObjectId, accessor: ObjectId ) -> Self {
+        todo!();
+    }
+
+    pub fn verify_sig(&self) -> Result<(), CapErr> {
+        todo!();
     }
 }
