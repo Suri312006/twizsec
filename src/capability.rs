@@ -97,10 +97,6 @@ impl UnsignedCap {
 
 impl Cap {
     pub fn verify_sig(&self, target_priv_key: [u8; 32]) -> Result<(), VerificationError> {
-        let signing_key = SigningKey::from_slice(&target_priv_key)
-            .expect("Failed to create Signing Key from Target Private Key");
-        let verifying_key = VerifyingKey::from(&signing_key);
-
         let mut hashing_algo = None;
         let mut signing_scheme = None;
 
@@ -145,8 +141,11 @@ impl Cap {
 
         match signing_scheme.unwrap() {
             SigningScheme::Ecdsa => {
+                let signing_key = SigningKey::from_slice(&target_priv_key)
+                    .map_err(|_| VerificationError::InvalidPrivateKey)?;
+                let verifying_key = VerifyingKey::from(&signing_key);
                 let sig = Signature::from_slice(&self.sig[0..self.siglen as usize])
-                    .expect("Reconstructing Signature Failed");
+                    .map_err(|_| VerificationError::CorruptedSignature)?;
 
                 verifying_key
                     .verify(hash.as_slice(), &sig)
