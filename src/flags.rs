@@ -1,5 +1,6 @@
 use bitflags::bitflags;
 
+#[derive(PartialEq)]
 pub struct CapFlags(u8); // pretty sure we can make this smaller right
 
 #[rustfmt::skip] // so the bits are all nice and neat
@@ -9,4 +10,14 @@ bitflags! {
         const SHA256 =  0b00000001;
         const ECDSA =   0b00000010;
     }
+}
+
+// only for internal use
+pub(crate) enum SigningScheme {
+    Ecdsa,
+}
+
+// only for internal use
+pub(crate) enum HashingAlgo {
+    Sha256,
 }

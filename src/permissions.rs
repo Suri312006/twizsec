@@ -1,4 +1,4 @@
-pub struct Permissions(u8); // pretty sure we can make this smaller right
+pub struct Permissions(u8);
 use bitflags::bitflags;
 
 #[rustfmt::skip] // so the bits are all nice and neat
