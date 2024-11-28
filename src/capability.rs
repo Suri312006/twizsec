@@ -59,8 +59,7 @@ impl UnsignedCap {
         // then use ECDSA to form a signature.
 
         let flags = CapFlags::SHA256 | CapFlags::ECDSA; // set flags
-        let siglen = (target_priv_key.len() * 2) as u16; // according to how ecdsa signatures work,
-                                                         // multiplying by 8 because len() returns bytes not bits
+        let siglen = 64_u16; // according to how p256 ecdsa signature work,
 
         //NOTE: the total "hashable" content size is 288 bits => [u8;36] array! (for now atleast),
         let mut hash_arr: [u8; 36] = [0; 36];
