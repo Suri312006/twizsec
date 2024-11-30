@@ -2,7 +2,7 @@ use hex_literal::hex;
 use twizsec::{Cap, ObjectId, Permissions};
 
 #[test]
-fn basic_creation_and_verification() {
+fn creation_and_verification() {
     let accessor_id: ObjectId = 12345689;
     let target_id: ObjectId = 987654321;
     //https://datatracker.ietf.org/doc/html/rfc6979#appendix-A.2.5

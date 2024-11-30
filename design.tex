@@ -84,11 +84,11 @@ This is the spec inside the paper
 \begin{verbatim}
 CAP := {
     target, accessor : ObjectId,
-    permissions, flags : BitField, // bitfield of permissions
-    gates: Gates, // going to not have this
-    revocation : Revoc, // not going to have this
-    siglen: Length, // not really sure what "Length" means here but im assuming a u16 should be good enough
-    sig: u8[], // signature
+    permissions, flags : BitField,
+    gates: Gates,
+    revocation : Revoc,
+    siglen: Length,
+    sig: u8[],
 }
 \end{verbatim}
 
