@@ -1,3 +1,4 @@
+#[derive(Debug, Clone, Copy)]
 pub struct Permissions(u8);
 use bitflags::bitflags;
 

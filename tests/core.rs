@@ -1,5 +1,5 @@
 use hex_literal::hex;
-use twizsec::{ObjectId, Permissions, UnsignedCap};
+use twizsec::{Cap, ObjectId, Permissions};
 
 #[test]
 fn basic_creation_and_verification() {
@@ -12,15 +12,14 @@ fn basic_creation_and_verification() {
     // works if we use a hard-coded size
 
     // now lets say accessor wants to reach target
-    let target_rw_cap = UnsignedCap::new(
+    let target_rw_cap = Cap::new(
         target_id,
         accessor_id,
         Permissions::READ | Permissions::WRITE,
+        target_priv_key,
     );
 
-    let target_rw_signed_cap = target_rw_cap.sign(target_priv_key);
-
-    target_rw_signed_cap
+    target_rw_cap
         .verify_sig(target_priv_key)
         .expect("should be verified ");
 }

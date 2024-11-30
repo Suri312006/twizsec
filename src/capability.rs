@@ -6,7 +6,7 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     flags::{CapFlags, HashingAlgo, SigningScheme},
-    Permissions, VerificationError,
+    CapError, Permissions,
 };
 
 pub type ObjectId = u128;
@@ -28,47 +28,17 @@ pub struct Cap {
                      // store the sig
 }
 
-pub struct UnsignedCap {
-    pub target: ObjectId,
-    pub accessor: ObjectId,
-    permissions: Permissions,
-    //WARN: adding these fields means you need to update how the contents are being hashed below
-    //gates: Gates
-    //revocation: Revoc
-}
-
-impl UnsignedCap {
-    pub fn new(target: ObjectId, accessor: ObjectId, perms: Permissions) -> Self {
-        Self {
-            target,
-            accessor,
-            permissions: perms,
-        }
-    }
-
-    /* How a signature is formed (according to the sec paper)
-     * hashing all fields (including siglen, excluding sig)
-     * apply digital hashing algorithm to the hash
-     * bits in flags are set to identify which hashing algorithms were used
-     */
-    // the signing key is supposed to be the private key of the target object
-    // capabilities are supposed to be immutable, makes no sense for this to take in a mutable
-    // capability, makes more sense for it to consume the previous one to return a cap one?
-    pub fn sign(self, target_priv_key: [u8; 32]) -> Cap {
-        // first use the sha2 algorithm to hash the capability contents
-        // then use ECDSA to form a signature.
-
+impl Cap {
+    pub fn new(
+        target: ObjectId,
+        accessor: ObjectId,
+        perms: Permissions,
+        target_priv_key: [u8; 32],
+    ) -> Self {
         let flags = CapFlags::SHA256 | CapFlags::ECDSA; // set flags
         let siglen = 64_u16; // according to how p256 ecdsa signature work,
 
-        //NOTE: the total "hashable" content size is 288 bits => [u8;36] array! (for now atleast),
-        let mut hash_arr: [u8; 36] = [0; 36];
-
-        hash_arr[0..16].copy_from_slice(&self.accessor.to_le_bytes());
-        hash_arr[16..32].copy_from_slice(&self.target.to_le_bytes());
-        hash_arr[32] = self.permissions.bits();
-        hash_arr[33] = flags.bits();
-        hash_arr[34..36].copy_from_slice(&siglen.to_le_bytes());
+        let hash_arr = Cap::serialize(accessor, target, perms, flags, siglen);
 
         let mut hasher = Sha256::new();
         hasher.update(hash_arr);
@@ -85,53 +55,28 @@ impl UnsignedCap {
         sig_buf[0..siglen as usize].copy_from_slice(signature.to_bytes().as_slice());
 
         Cap {
-            accessor: self.accessor,
-            target: self.target,
-            permissions: self.permissions,
+            accessor,
+            target,
+            permissions: perms,
             flags,
             siglen,
             sig: sig_buf,
         }
     }
-}
+    pub fn verify_sig(&self, target_priv_key: [u8; 32]) -> Result<(), CapError> {
+        let (hashing_algo, signing_scheme) = self.flags.parse()?;
 
-impl Cap {
-    pub fn verify_sig(&self, target_priv_key: [u8; 32]) -> Result<(), VerificationError> {
-        let mut hashing_algo = None;
-        let mut signing_scheme = None;
+        // i hate how unergonomic this is but i wanted to contain all the serialziation to one
+        // function and this is the best way i could think of
+        let hash_arr = Cap::serialize(
+            self.accessor,
+            self.target,
+            self.permissions,
+            self.flags,
+            self.siglen,
+        );
 
-        for flag in self.flags.iter() {
-            match flag {
-                CapFlags::ECDSA => {
-                    if signing_scheme.is_some() {
-                        return Err(VerificationError::InvaildFlags);
-                    }
-                    signing_scheme = Some(SigningScheme::Ecdsa)
-                }
-                CapFlags::SHA256 => {
-                    if hashing_algo.is_some() {
-                        return Err(VerificationError::InvaildFlags);
-                    }
-                    hashing_algo = Some(HashingAlgo::Sha256)
-                }
-                _ => {} // not a fan of this but have to otherwise it bugs you
-            };
-        }
-
-        // sanity check
-        if hashing_algo.is_none() || signing_scheme.is_none() {
-            return Err(VerificationError::InvaildFlags);
-        }
-
-        let mut hash_arr: [u8; 36] = [0; 36];
-
-        hash_arr[0..16].copy_from_slice(&self.accessor.to_le_bytes());
-        hash_arr[16..32].copy_from_slice(&self.target.to_le_bytes());
-        hash_arr[32] = self.permissions.bits();
-        hash_arr[33] = self.flags.bits();
-        hash_arr[34..36].copy_from_slice(&self.siglen.to_le_bytes());
-
-        let hash = match hashing_algo.unwrap() {
+        let hash = match hashing_algo {
             HashingAlgo::Sha256 => {
                 let mut hasher = Sha256::new();
                 hasher.update(hash_arr);
@@ -139,19 +84,38 @@ impl Cap {
             }
         };
 
-        match signing_scheme.unwrap() {
+        match signing_scheme {
             SigningScheme::Ecdsa => {
                 let signing_key = SigningKey::from_slice(&target_priv_key)
-                    .map_err(|_| VerificationError::InvalidPrivateKey)?;
+                    .map_err(|_| CapError::InvalidPrivateKey)?;
                 let verifying_key = VerifyingKey::from(&signing_key);
                 let sig = Signature::from_slice(&self.sig[0..self.siglen as usize])
-                    .map_err(|_| VerificationError::CorruptedSignature)?;
+                    .map_err(|_| CapError::CorruptedSignature)?;
 
                 verifying_key
                     .verify(hash.as_slice(), &sig)
                     //NOTE: does the kernel have logging capabilities to log this error?
-                    .map_err(|_| VerificationError::InvalidSignature)
+                    .map_err(|_| CapError::InvalidSignature)
             }
         }
+    }
+    /// returns all contents other than sig as a buffer ready to hash
+    //NOTE: the total "hashable" content size is 288 bits => [u8;36] array! (for now atleast),
+    fn serialize(
+        accessor: ObjectId,
+        target: ObjectId,
+        perms: Permissions,
+        flags: CapFlags,
+        siglen: u16,
+    ) -> [u8; 36] {
+        let mut hash_arr: [u8; 36] = [0; 36];
+
+        hash_arr[0..16].copy_from_slice(&accessor.to_le_bytes());
+        hash_arr[16..32].copy_from_slice(&target.to_le_bytes());
+        hash_arr[32] = perms.bits();
+        hash_arr[33] = flags.bits();
+        hash_arr[34..36].copy_from_slice(&siglen.to_le_bytes());
+
+        hash_arr
     }
 }
