@@ -1,5 +1,5 @@
 use hex_literal::hex;
-use twizsec::{Cap, ObjectId, Permissions};
+use twizsec::{Cap, ObjectId, Permissions, SigningScheme, VerifyingKey};
 
 #[test]
 fn creation_and_verification() {
@@ -19,7 +19,9 @@ fn creation_and_verification() {
         target_priv_key,
     );
 
+    let verifying_key = VerifyingKey::new(SigningScheme::Ecdsa, &target_priv_key);
+
     target_rw_cap
-        .verify_sig(target_priv_key)
+        .verify_sig(verifying_key)
         .expect("should be verified ");
 }

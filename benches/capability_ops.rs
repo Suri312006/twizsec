@@ -1,7 +1,9 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use hex_literal::hex;
 use std::hint::black_box;
-use twizsec::{Cap, ObjectId, Permissions};
+use twizsec::{Cap, ObjectId, Permissions, SigningScheme, VerifyingKey};
+
+// use cargo bench for these
 
 fn verify_bench(c: &mut Criterion) {
     let accessor_id: ObjectId = 12345689;
@@ -20,8 +22,10 @@ fn verify_bench(c: &mut Criterion) {
         target_priv_key,
     );
 
+    let verifying_key = VerifyingKey::new(SigningScheme::Ecdsa, &target_priv_key);
+
     c.bench_function("Verifying SHA256 and P256 ECDSA Signature", |b| {
-        b.iter(|| target_rw_cap.verify_sig(black_box(target_priv_key)))
+        b.iter(|| target_rw_cap.verify_sig(black_box(verifying_key)))
     });
 }
 
@@ -50,5 +54,5 @@ fn creation_bench(c: &mut Criterion) {
     );
 }
 
-criterion_group!(benches, verify_bench, creation_bench);
+criterion_group!(benches, creation_bench, verify_bench);
 criterion_main!(benches);

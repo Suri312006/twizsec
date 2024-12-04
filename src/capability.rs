@@ -1,12 +1,12 @@
 use p256::ecdsa::{
     signature::{SignerMut, Verifier},
-    Signature, SigningKey, VerifyingKey,
+    Signature, SigningKey, VerifyingKey as p256VerifyingKey,
 };
 use sha2::{Digest, Sha256};
 
 use crate::{
     flags::{CapFlags, HashingAlgo, SigningScheme},
-    CapError, Permissions,
+    CapError, Permissions, VerifyingKey,
 };
 
 pub type ObjectId = u128;
@@ -63,7 +63,7 @@ impl Cap {
             sig: sig_buf,
         }
     }
-    pub fn verify_sig(&self, target_priv_key: [u8; 32]) -> Result<(), CapError> {
+    pub fn verify_sig(&self, verifying_key: VerifyingKey) -> Result<(), CapError> {
         let (hashing_algo, signing_scheme) = self.flags.parse()?;
 
         // i hate how unergonomic this is but i wanted to contain all the serialziation to one
@@ -84,16 +84,18 @@ impl Cap {
             }
         };
 
+        // sanity check
+        if signing_scheme != verifying_key.scheme {
+            return Err(CapError::InvalidVerifyKey);
+        }
+
         match signing_scheme {
             SigningScheme::Ecdsa => {
-                let signing_key = SigningKey::from_slice(&target_priv_key)
-                    .map_err(|_| CapError::InvalidPrivateKey)?;
-                let verifying_key = VerifyingKey::from(&signing_key);
+                let vkey = p256VerifyingKey::from_sec1_bytes(verifying_key.as_bytes()).expect("xd");
                 let sig = Signature::from_slice(&self.sig[0..self.siglen as usize])
                     .map_err(|_| CapError::CorruptedSignature)?;
 
-                verifying_key
-                    .verify(hash.as_slice(), &sig)
+                vkey.verify(hash.as_slice(), &sig)
                     //NOTE: does the kernel have logging capabilities to log this error?
                     .map_err(|_| CapError::InvalidSignature)
             }

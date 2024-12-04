@@ -1,7 +1,7 @@
 #[derive(Debug)]
 pub enum CapError {
     InvalidSignature,
-    InvalidPrivateKey,
+    InvalidVerifyKey,
     InvalidFlags,
     CorruptedSignature,
 }

@@ -49,7 +49,7 @@ the following goals (summarized from me and Daniels meeting on 11/26/24).
     \item programming the mmu / io to reflect security policy data
 \end{enumerate}
 
-\section{Implementation}
+\section{Planning}
 
 
 \subsection{Needs}
@@ -91,6 +91,39 @@ CAP := {
     sig: u8[],
 }
 \end{verbatim}
+
+
+\section{Explaining the Implementation}
+
+\subsection{Cap struct}
+The Cap struct encompasses the functionality of the Capability, having
+everything but the gates and revocation fields present in the paper, only because
+I wasnt planning to finish that this time around, maybe next time. I'll list some
+key descision details below.
+\begin{itemize}
+    \item UnsignedCapability =$>$ Capability VS Capability::new()
+
+
+        My first iteration had a UnsignedCap struct that would only have two methods,
+        new(...) -$>$ Self , which would initialize it, and a sign(self) -$>$ Cap, which would consume
+        the unsignedcap and return a signed capability. The second implementation would
+        only have the capability struct, which gets signed on initialization. While
+        I liked how "satisfying" the sign function was in the first implementation,
+        the conciseness of the second implementation is cleaner
+        since its one struct, one function, one capability, so I went ahead with that.
+
+    \item the serialize function
+
+        Since its a no_std environment, the most pressing concern is that there is no
+        std library, nor any memory allocator. Which means that when im trying to
+        "serialize" the contents of the capability struct to hash (where all of
+        the hashing functions take in a [u8]). The easiest solution, in my mind atleast,
+        was to just count how many bytes the array is and just create a new array of that size,
+        copy the bytes of each field over one by one, and boom, serialized capability struct as
+        fast as possible. Just note that once the revoc and gates fields are added, this
+        hashing function will need to be changed to account for them.
+
+\end{itemize}
 
 
 \end{document}

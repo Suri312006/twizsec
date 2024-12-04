@@ -5,8 +5,10 @@
 mod capability;
 mod errors;
 mod flags;
+mod keys;
 mod permissions;
 pub use capability::*;
 pub use errors::*;
 pub use flags::*;
+pub use keys::*;
 pub use permissions::*;
