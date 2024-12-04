@@ -91,7 +91,8 @@ impl Cap {
 
         match signing_scheme {
             SigningScheme::Ecdsa => {
-                let vkey = p256VerifyingKey::from_sec1_bytes(verifying_key.as_bytes()).expect("xd");
+                let vkey = p256VerifyingKey::from_sec1_bytes(verifying_key.as_bytes())
+                    .map_err(|_| CapError::InvalidVerifyKey)?;
                 let sig = Signature::from_slice(&self.sig[0..self.siglen as usize])
                     .map_err(|_| CapError::CorruptedSignature)?;
 
@@ -101,6 +102,7 @@ impl Cap {
             }
         }
     }
+
     /// returns all contents other than sig as a buffer ready to hash
     //NOTE: the total "hashable" content size is 288 bits => [u8;36] array! (for now atleast),
     fn serialize(
