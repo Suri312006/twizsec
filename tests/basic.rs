@@ -19,9 +19,10 @@ fn creation_and_verification() {
         target_priv_key,
     );
 
-    let verifying_key = VerifyingKey::new(SigningScheme::Ecdsa, &target_priv_key);
+    let verifying_key = VerifyingKey::new(SigningScheme::Ecdsa, &target_priv_key).unwrap();
 
     target_rw_cap
+        .unwrap()
         .verify_sig(verifying_key)
         .expect("should be verified ");
 }

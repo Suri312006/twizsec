@@ -34,7 +34,7 @@ impl Cap {
         accessor: ObjectId,
         perms: Permissions,
         target_priv_key: [u8; 32],
-    ) -> Self {
+    ) -> Result<Self, CapError> {
         let flags = CapFlags::SHA256 | CapFlags::ECDSA; // set flags
         let siglen = 64_u16; // according to how p256 ecdsa signature work,
 
@@ -45,8 +45,9 @@ impl Cap {
         let hash = hasher.finalize();
 
         // hash has been generated, time to do the signing
-        let mut signing_key = SigningKey::from_slice(&target_priv_key)
-            .expect("Failed to create Signing Key from Target Private Key");
+        let mut signing_key =
+            SigningKey::from_slice(&target_priv_key).map_err(|_| CapError::InvalidPrivateKey)?;
+
         let signature: Signature = signing_key.sign(hash.as_slice());
 
         let mut sig_buf: [u8; 1024] = [0; 1024];
@@ -54,14 +55,14 @@ impl Cap {
         // this line can panic if somehow siglen is > 1024
         sig_buf[0..siglen as usize].copy_from_slice(signature.to_bytes().as_slice());
 
-        Cap {
+        Ok(Cap {
             accessor,
             target,
             permissions: perms,
             flags,
             siglen,
             sig: sig_buf,
-        }
+        })
     }
     pub fn verify_sig(&self, verifying_key: VerifyingKey) -> Result<(), CapError> {
         let (hashing_algo, signing_scheme) = self.flags.parse()?;

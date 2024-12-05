@@ -20,9 +20,10 @@ fn verify_bench(c: &mut Criterion) {
         accessor_id,
         Permissions::READ | Permissions::WRITE,
         target_priv_key,
-    );
+    )
+    .unwrap();
 
-    let verifying_key = VerifyingKey::new(SigningScheme::Ecdsa, &target_priv_key);
+    let verifying_key = VerifyingKey::new(SigningScheme::Ecdsa, &target_priv_key).unwrap();
 
     c.bench_function("Verifying SHA256 and P256 ECDSA Signature", |b| {
         b.iter(|| target_rw_cap.verify_sig(black_box(verifying_key)))
