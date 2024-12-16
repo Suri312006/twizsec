@@ -2,7 +2,7 @@ use bitflags::bitflags;
 
 use crate::CapError;
 
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Copy, Clone, Debug, Eq, Ord, PartialOrd)]
 pub struct CapFlags(u8); // pretty sure we can make this smaller right
 
 #[rustfmt::skip] // so the bits are all nice and neat

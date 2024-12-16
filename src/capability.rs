@@ -6,11 +6,10 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     flags::{CapFlags, HashingAlgo, SigningScheme},
-    CapError, Permissions, VerifyingKey,
+    CapError, ObjectId, Permissions, VerifyingKey,
 };
 
-pub type ObjectId = u128;
-
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Cap {
     pub target: ObjectId, // needs to be public for kernel access, could also do the java way of
     // getters and setters but not fully sure what the code style of the repo should be
@@ -67,7 +66,7 @@ impl Cap {
     pub fn verify_sig(&self, verifying_key: VerifyingKey) -> Result<(), CapError> {
         let (hashing_algo, signing_scheme) = self.flags.parse()?;
 
-        // i hate how unergonomic this is but i wanted to contain all the serialziation to one
+        // i hate how unergonomic this is but i wanted to contain all the serialization to one
         // function and this is the best way i could think of
         let hash_arr = Cap::serialize(
             self.accessor,
