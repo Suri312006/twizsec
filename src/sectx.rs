@@ -2,6 +2,7 @@ use alloc::vec::{self, Vec};
 
 use crate::{Cap, ObjectId};
 
+#[derive(Clone)]
 pub struct SecCtx {
     // this is the object id for the ctx
     pub obj_id: ObjectId,
