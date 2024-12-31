@@ -6,38 +6,36 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     flags::{CapFlags, HashingAlgo, SigningScheme},
-    CapError, ObjectId, Permissions, VerifyingKey,
+    CapError, Gates, GatesError, ObjectId, Permissions, VerifyingKey,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Cap {
-    pub target: ObjectId, // needs to be public for kernel access, could also do the java way of
-    // getters and setters but not fully sure what the code style of the repo should be
-    pub accessor: ObjectId, // needs to be public for kernel access
-
-    permissions: Permissions,
+    pub target: ObjectId,
+    pub accessor: ObjectId,
+    pub permissions: Permissions,
     flags: CapFlags,
-
-    //WARN: adding these fields means you need to update how the contents are being hashed below
-    //gates: Gates
-    //revocation: Revoc
+    gates: Gates,
+    pub revocation: u128,
     ///NOTE: AS BYTES
     siglen: u16,
-    sig: [u8; 1024], // since we dont have a allocator, just using a "big enough" array to
-                     // store the sig
+    sig: [u8; 1024],
 }
 
 impl Cap {
+    /// creating a new capability, revoc specified in expiration data in ns from unix epoch
     pub fn new(
         target: ObjectId,
         accessor: ObjectId,
         perms: Permissions,
-        target_priv_key: [u8; 32],
+        target_priv_key: [u8; 32], // with this key we can?
+        revocation: u128,
+        gates: Gates,
     ) -> Result<Self, CapError> {
         let flags = CapFlags::SHA256 | CapFlags::ECDSA; // set flags
         let siglen = 64_u16; // according to how p256 ecdsa signature work,
 
-        let hash_arr = Cap::serialize(accessor, target, perms, flags, siglen);
+        let hash_arr = Cap::serialize(accessor, target, perms, flags, siglen, revocation, gates);
 
         let mut hasher = Sha256::new();
         hasher.update(hash_arr);
@@ -61,8 +59,12 @@ impl Cap {
             flags,
             siglen,
             sig: sig_buf,
+            revocation,
+            gates,
         })
     }
+
+    /// verifies signature inside capability
     pub fn verify_sig(&self, verifying_key: VerifyingKey) -> Result<(), CapError> {
         let (hashing_algo, signing_scheme) = self.flags.parse()?;
 
@@ -74,6 +76,8 @@ impl Cap {
             self.permissions,
             self.flags,
             self.siglen,
+            self.revocation,
+            self.gates,
         );
 
         let hash = match hashing_algo {
@@ -103,23 +107,51 @@ impl Cap {
         }
     }
 
+    /// pass in proposed gates values, verifies that they fall within the range
+    /// specified by this capability
+    pub fn check_gate(&self, offset: u64, length: u64, align: u64) -> Result<(), GatesError> {
+        // the offset and length fields specify a region within the object. when the kernel switches a threads active context in addition to the validity checks
+        // described in sec 3.1, it checks to see if the instruction pointer is in a valid gate for the object it points to.
+        // The instruction pointer must reside within the region specified by offset and length and must be aligned on a value specified by align.
+
+        //  assuming the layout is something like
+        // ||||||||||||||||||||||||||||||||||||||||||||||||||||
+        // offset |                                       | length
+        //        {                                       }
+        // the proposed offset must lay in this region
+        if self.gates.offset < offset || offset > self.gates.offset + length {
+            return Err(GatesError::OutsideBounds);
+        }
+
+        //NOTE: not completely sure this is how you check alignment.
+        if self.gates.align != align {
+            return Err(GatesError::Unaligned);
+        }
+
+        Ok(())
+    }
+
     /// returns all contents other than sig as a buffer ready to hash
-    //NOTE: the total "hashable" content size is 288 bits => [u8;36] array! (for now atleast),
     fn serialize(
         accessor: ObjectId,
         target: ObjectId,
         perms: Permissions,
         flags: CapFlags,
         siglen: u16,
-    ) -> [u8; 36] {
-        let mut hash_arr: [u8; 36] = [0; 36];
+        revocation: u128,
+        gates: Gates,
+    ) -> [u8; 76] {
+        let mut hash_arr: [u8; 76] = [0; 76];
 
         hash_arr[0..16].copy_from_slice(&accessor.to_le_bytes());
         hash_arr[16..32].copy_from_slice(&target.to_le_bytes());
         hash_arr[32] = perms.bits();
         hash_arr[33] = flags.bits();
         hash_arr[34..36].copy_from_slice(&siglen.to_le_bytes());
-
+        hash_arr[36..52].copy_from_slice(&revocation.to_le_bytes());
+        hash_arr[52..60].copy_from_slice(&gates.offset.to_le_bytes());
+        hash_arr[60..68].copy_from_slice(&gates.length.to_le_bytes());
+        hash_arr[68..76].copy_from_slice(&gates.align.to_le_bytes());
         hash_arr
     }
 }

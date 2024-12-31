@@ -29,6 +29,7 @@ impl SecCtx {
     pub fn add_cap(&mut self, cap: Cap) {
         self.caps.push(cap);
     }
+    // remove function
 
     pub fn find_caps(&self, target_obj_id: ObjectId) -> Option<Vec<&Cap>> {
         let res: Vec<&Cap> = self

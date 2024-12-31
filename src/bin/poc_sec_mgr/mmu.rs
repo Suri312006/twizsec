@@ -8,6 +8,19 @@ impl MMU {
     // i know this isnt exactly how its supposed to work but its
     // really hard to emulate everything that happens physically
     // so im trying to break it down into logical steps
+    // needs to go through all security contexts for the given object
+    //
+    // when an object is accessed for the first time, it causes a page fault
+    // that the kernel handles. The kernel looks up access rights for that object in the threads
+    // security context, and if the security context grants the requested rights,
+    // the kernel maps the objects in.
+    // If the security context does not grant those access rights,
+    // the kernel searches through the threads other attached security contexts.
+    // for each of these contexts, the kernel checks if the requested access is allowed and that
+    // the code at the program counter is still executable in this
+    // security context. If both the conditions are true, the kernel
+    // kernel switches into this security context. If the kernel cannot find
+    // a valid context, an exception is raised (which terminates the thread)
     pub fn access_obj(
         obj: Object,
         curr_ctx: SecCtx,

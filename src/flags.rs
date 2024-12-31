@@ -11,6 +11,7 @@ bitflags! {
         //NOTE: flags here indicate which algorithm was used for signature generation.
         const SHA256 =  0b00000001;
         const ECDSA =   0b00000010;
+        // non removable tag here
     }
 }
 
